@@ -154,14 +154,7 @@ public class QGISUtils
 
 								}
 							}
-								
 							jobjTopic.put("tables", jTablesList);
-							//fw.write(jobjTopic.toJSONString());
-
-							//buf.append("  <topic id=\""+topic.getName()+"\" title=\""+topic.getName()+"\" group=\""+topic.getName()+"\">\n");
-
-							
-						
 						}
 					}
 					jobjIli.put("topics", jTopicsList);
