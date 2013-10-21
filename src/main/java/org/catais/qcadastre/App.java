@@ -9,10 +9,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
+import org.catais.qcadastre.interlis.IliReader;
 import org.catais.qcadastre.utils.QGISUtils;
 import org.catais.qcadastre.utils.Utils;
 
@@ -60,12 +62,26 @@ public class App
 			logger.info("doReindex: " + doReindex);
 			logger.info("doQgisFiles: " + doQgisFiles);
 			
+			// Create json file for QGIS
 			if (doQgisFiles == true) {
 				String importModelName = (String) params.get("importModelName");
 				String dbschema = (String) params.get("dbschema");
 								
 				QGISUtils.createTopicsTableJson(importModelName, dbschema);
 			}
+			
+			// Do the import
+			{
+				IliReader reader = new IliReader( itf, "21781", params );
+				reader.compileModel();
+
+				
+				
+			}
+
+			
+			
+			
 
 			
     	} catch (FileNotFoundException e) {
