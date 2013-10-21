@@ -41,7 +41,7 @@ public class QGISUtils
     	
     }
     
-    public static void createTopicsTableJson(String importModelName, String dbschema) throws Ili2cException, IllegalArgumentException {
+    public static void createTopicsTablesJson(String importModelName, String dbschema) throws Ili2cException, IllegalArgumentException {
 		logger.setLevel(Level.DEBUG);
 
 		ch.interlis.ili2c.metamodel.TransferDescription iliTd = IliUtils.compileModel(importModelName);

@@ -67,7 +67,7 @@ public class App
 				String importModelName = (String) params.get("importModelName");
 				String dbschema = (String) params.get("dbschema");
 								
-				QGISUtils.createTopicsTableJson(importModelName, dbschema);
+				QGISUtils.createTopicsTablesJson(importModelName, dbschema);
 			}
 			
 			// Do the import
