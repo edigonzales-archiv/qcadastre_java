@@ -38,7 +38,7 @@ public class GTUtils {
 
 	private GTUtils(){};
 
-	public static LinkedHashMap getFeatureTypesFromItfTransferViewables(ch.interlis.ili2c.metamodel.TransferDescription td, String epsg) 
+	public static LinkedHashMap getFeatureTypesFromItfTransferViewables(ch.interlis.ili2c.metamodel.TransferDescription td, String epsg, boolean enumerationText) 
 	{
 		LinkedHashMap ret = new LinkedHashMap();
 		Iterator modeli = td.iterator();
@@ -76,7 +76,7 @@ public class GTUtils {
 
 								SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
 								typeBuilder.setName(className);
-								//typeBuilder.setNamespaceURI("http://www.catais.org");
+								typeBuilder.setNamespaceURI("http://www.catais.org");
 								typeBuilder.setSRS("EPSG:" + epsg);
 
 								typeBuilder.add("tid", String.class);
@@ -104,19 +104,13 @@ public class GTUtils {
 
 											SimpleFeatureTypeBuilder typeBuilderRef = new SimpleFeatureTypeBuilder();
 											typeBuilderRef.setName(className + "_ "+ name);
-											//typeBuilderRef.setNamespaceURI("http://www.catais.org");
+											typeBuilderRef.setNamespaceURI("http://www.catais.org");
 											typeBuilderRef.setSRS("EPSG:" + epsg);
 
 											typeBuilderRef.add("tid", String.class);
 											typeBuilderRef.add("_itf_ref", String.class);
 											typeBuilderRef.add(name.toLowerCase(), LineString.class);
-									
-											if (true) {
-												typeBuilderRef.add("gem_bfs", Integer.class);
-												typeBuilderRef.add("los", Integer.class);
-												typeBuilderRef.add("lieferdatum", Date.class);
-											}
-											
+																				
 											SimpleFeatureType featureTypeRef = typeBuilderRef.buildFeatureType();
 											ret.put(className + "_" + name, featureTypeRef);
 
@@ -132,18 +126,12 @@ public class GTUtils {
 
 											SimpleFeatureTypeBuilder typeBuilderRef = new SimpleFeatureTypeBuilder();
 											typeBuilderRef.setName(className + "_" + name);
-											//typeBuilderRef.setNamespaceURI( "http://www.catais.org" );
+											typeBuilderRef.setNamespaceURI( "http://www.catais.org" );
 											typeBuilderRef.setSRS("EPSG:" + epsg);
 
 											typeBuilderRef.add("tid", String.class);
 											typeBuilderRef.add("_itf_ref", String.class);
 											typeBuilderRef.add(name.toLowerCase(), LineString.class);
-
-											if (true) {
-												typeBuilderRef.add("gem_bfs", Integer.class);
-												typeBuilderRef.add("los", Integer.class);
-												typeBuilderRef.add("lieferdatum", Date.class);
-											}
 											
 											SimpleFeatureType featureTypeRef = typeBuilderRef.buildFeatureType();
 											ret.put(className + "_" + name, featureTypeRef);
@@ -156,7 +144,7 @@ public class GTUtils {
 											typeBuilder.add(attrdefObj.getName().toLowerCase(), Double.class);
 										} else if (type instanceof EnumerationType) {
 											typeBuilder.add(attrdefObj.getName().toLowerCase(), Integer.class);
-											if (true == true) {
+											if (enumerationText == true) {
 												typeBuilder.add(attrdefObj.getName().toLowerCase()+"_txt", String.class);
 											}
 										} else {
@@ -169,11 +157,6 @@ public class GTUtils {
 									}
 								}
 								
-								if (true) {
-									typeBuilder.add("gem_bfs", Integer.class);
-									typeBuilder.add("los", Integer.class);
-									typeBuilder.add("lieferdatum", Date.class);
-								}
 								SimpleFeatureType featureType = typeBuilder.buildFeatureType();
 				
 								ret.put(className, featureType);

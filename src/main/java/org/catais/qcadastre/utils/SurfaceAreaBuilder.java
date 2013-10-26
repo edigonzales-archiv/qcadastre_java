@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.FeatureCollection;
@@ -31,12 +32,14 @@ import com.vividsolutions.jts.operation.polygonize.Polygonizer;
 
 public class SurfaceAreaBuilder {
 
-	private static Logger logger = Logger.getLogger( SurfaceAreaBuilder.class );
+	private static Logger logger = Logger.getLogger(SurfaceAreaBuilder.class);
 
 	private SurfaceAreaBuilder(){};
 	
 	public static SimpleFeatureCollection buildSurface( SimpleFeatureCollection surfaceMainCollection, SimpleFeatureCollection surfaceHelperCollection ) 
 	{
+		logger.setLevel(Level.INFO);
+
 		SimpleFeatureCollection collection = null;
 		ArrayList featureList = new ArrayList();
 
@@ -150,6 +153,8 @@ public class SurfaceAreaBuilder {
 	
 	public static SimpleFeatureCollection buildArea( SimpleFeatureCollection areaMainCollection, SimpleFeatureCollection areaHelperCollection )
 	{
+		logger.setLevel(Level.INFO);
+		
 		SimpleFeatureCollection collection = null;
 		ArrayList features = new ArrayList();
 		
@@ -227,6 +232,8 @@ public class SurfaceAreaBuilder {
 	
 	private static Geometry extractPoint(Collection lines)
 	{
+		logger.setLevel(Level.INFO);
+
 		int minPts = Integer.MAX_VALUE;
 		Geometry point = null;
 		// extract first point from first non-empty geometry
@@ -245,6 +252,8 @@ public class SurfaceAreaBuilder {
 	
 	private static Collection nodeLines( Collection lines )
 	{
+		logger.setLevel(Level.INFO);
+
 	    GeometryFactory fact = new GeometryFactory();
 		Geometry linesGeom = fact.createMultiLineString( fact.toLineStringArray( lines ) );
 		Geometry unionInput  = fact.createMultiLineString(null);
@@ -263,6 +272,8 @@ public class SurfaceAreaBuilder {
 	
 	private static Collection getLines( FeatureCollection inputFeatures )
 	{
+		logger.setLevel(Level.INFO);
+		
 		List linesList = new ArrayList();
 		LinearComponentExtracter lineFilter = new LinearComponentExtracter( linesList );
 		FeatureIterator i = inputFeatures.features();		

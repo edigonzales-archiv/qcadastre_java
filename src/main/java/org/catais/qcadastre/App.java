@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -17,8 +18,10 @@ import org.apache.log4j.PropertyConfigurator;
 import org.catais.qcadastre.interlis.IliReader;
 import org.catais.qcadastre.utils.QGISUtils;
 import org.catais.qcadastre.utils.Utils;
+import org.catais.qcadastre.postprocessing.PostProcessing;
 
 import ch.interlis.ili2c.Ili2cException;
+import ch.interlis.iox.IoxException;
 
 /**
  * Hello world!
@@ -72,9 +75,11 @@ public class App
 			
 			// Do the import
 			{
-				IliReader reader = new IliReader( itf, "21781", params );
-				reader.compileModel();
-
+				IliReader ilireader = new IliReader(params);
+				ilireader.read();
+				
+				PostProcessing pp = new PostProcessing(params);
+				pp.run();
 				
 				
 			}
@@ -97,6 +102,16 @@ public class App
     		e.printStackTrace();
     		logger.error(e.getMessage());
     	} catch (Ili2cException e) {
+    		e.printStackTrace();
+    		logger.error(e.getMessage());
+    	} catch (SQLException e) {
+    		e.printStackTrace();
+    		logger.error(e.getMessage());
+    	} catch (ClassNotFoundException e) {
+    		e.printStackTrace();
+    		logger.error(e.getMessage());
+    	} 
+    		catch (IoxException e) {
     		e.printStackTrace();
     		logger.error(e.getMessage());
     	}

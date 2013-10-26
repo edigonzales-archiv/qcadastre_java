@@ -5,60 +5,26 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Collection;
-import java.util.HashSet;
-import java.math.BigDecimal;
 
-import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.geotools.feature.FeatureCollection;
-import org.geotools.feature.FeatureCollections;
-//import org.geotools.filter.text.cql2.*;
 import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFinder;
 import org.geotools.data.postgis.PostgisNGDataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
-//import org.geotools.data.postgis.PostgisDataStoreFactory;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.FeatureStore;
 import org.geotools.data.Transaction;
-import org.geotools.geometry.jts.JTSFactoryFinder;
-import org.geotools.referencing.crs.DefaultGeographicCRS;
-import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.data.DataAccessFactory.Param;
 
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.Filter;
-import org.opengis.filter.identity.FeatureId;
-import org.opengis.filter.FilterFactory;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.expression.PropertyName;
-import org.opengis.filter.expression.Literal;
 
 import com.vividsolutions.jts.geom.*;
-import com.vividsolutions.jts.operation.polygonize.*;
-import com.vividsolutions.jts.index.strtree.STRtree;
-import com.vividsolutions.jts.index.SpatialIndex;
-import com.vividsolutions.jts.geom.prep.PreparedPoint;
-import com.vividsolutions.jts.geom.util.LinearComponentExtracter;
 
 import ch.interlis.ili2c.Ili2c;
 import ch.interlis.ili2c.Ili2cException;
@@ -71,13 +37,13 @@ import ch.interlis.iom_j.itf.ItfReader;
 import ch.interlis.iom_j.itf.EnumCodeMapper;
 import ch.interlis.iox_j.jts.Iox2jts;
 import ch.interlis.iox_j.jts.Iox2jtsException;
-import ch.interlis.iox_j.jts.Jts2iox;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import org.catais.qcadastre.utils.PGUtils;
 import org.catais.qcadastre.utils.GTUtils;
+import org.catais.qcadastre.utils.IliUtils;
 import org.catais.qcadastre.utils.Iox2wkt;
 import org.catais.qcadastre.utils.SurfaceAreaBuilder;
 
@@ -87,12 +53,10 @@ public class IliReader
 	private static Logger logger = Logger.getLogger(IliReader.class);
 	
 	private ch.interlis.ili2c.metamodel.TransferDescription iliTd = null;
-	private int formatMode = 0;
 	private HashMap tag2class = null; 
 	private IoxReader ioxReader = null;
 	private EnumCodeMapper enumCodeMapper = new EnumCodeMapper();
 	private String modelName = null;
-	private String itfFileName = null;
 
     private Boolean isAreaHelper = false;
     private Boolean isAreaMain = false;
@@ -114,152 +78,123 @@ public class IliReader
     private String dbpwd = null;
     private String dbadmin = null;
     private String dbadminpwd = null;
-    private String srcdir = null;
-    private String epsg = null;
-
+    private String epsg = "21781";
+    private String importModelName = null;
+	private String importItfFile = null;
+	
+	private boolean enumerationText = false;
+	private boolean renumberTid = false;
+	
     private LinkedHashMap featureTypes = null;
 	private String featureName = null;
 
-	private LinkedHashMap collections = new LinkedHashMap();
 	private ArrayList features = null;
 	private ArrayList areaHelperFeatures = new ArrayList();
 	private ArrayList surfaceMainFeatures = new ArrayList();
-    //private FeatureCollection<SimpleFeatureType, SimpleFeature> collection = null;
-    //private SimpleFeatureCollection areaHelperCollection = null;
-    //private SimpleFeatureCollection surfaceMainCollection = null;
 	
 	private DataStore datastore = null;
 
     private Transaction t = null;
     
 
-    public IliReader(String itf, String epsg, HashMap params) throws IllegalArgumentException, IOException, ClassNotFoundException, SQLException, Exception {
-    	logger.setLevel(Level.DEBUG);
+    public IliReader(HashMap params) throws IllegalArgumentException, IOException, Ili2cException, ClassNotFoundException, SQLException {
+    	logger.setLevel(Level.INFO);
 
     	// get parameters
     	this.params = params;
     	readParams();   
-    	
-    	// detect interlis model name from itf
-    	this.itfFileName = itf;
-    	getModelNameFromItf();
-        logger.debug("Interlis model name: " + modelName);
-        if ( modelName == null )
-        {
-        	throw new IllegalArgumentException( "interlis model name is null" );
-        }
-        
-        // set epsg code
-        this.epsg = epsg;
-        
+    	        
         // compile interlis model
-        compileModel();
+        iliTd = IliUtils.compileModel(importModelName);
         
-        // delete existing pg schema and create new ones
-        //deletePostgresSchemaAndTables();
-        //createPostgresSchemaAndTables();
+        // create database schema
+        createPostgresSchemaAndTables();
         
         // get all feature types
-        featureTypes = GTUtils.getFeatureTypesFromItfTransferViewables( iliTd, this.epsg );
+        featureTypes = GTUtils.getFeatureTypesFromItfTransferViewables(iliTd, epsg, enumerationText);        
         
+    	tag2class = ch.interlis.iom_j.itf.ModelUtilities.getTagMap(iliTd);
     }
     
+    public void setEpsg(String epsg) {
+    	this.epsg = epsg;
+    }
         
-    public void read( int gem_bfs, int los ) throws IoxException, IOException 
+    public void read() throws IoxException, IOException 
     {    	    	
-    	logger.debug( "Starting Transaction..." );
+    	logger.debug("Starting Transaction...");
     	t = new DefaultTransaction();
     	
-    	ioxReader = new ch.interlis.iom_j.itf.ItfReader( new java.io.File( this.itfFileName ) );
-    	((ItfReader) ioxReader).setModel( iliTd );
-    	((ItfReader) ioxReader).setRenumberTids( true );
-    	((ItfReader) ioxReader).setReadEnumValAsItfCode( true );
-
+    	ioxReader = new ch.interlis.iom_j.itf.ItfReader(new java.io.File(importItfFile));
+    	((ItfReader) ioxReader).setModel(iliTd);
+    	((ItfReader) ioxReader).setRenumberTids(renumberTid);
+    	((ItfReader) ioxReader).setReadEnumValAsItfCode(enumerationText);
+    	
     	IoxEvent event = ioxReader.read();
-    	while ( event != null ) 
-    	{	
-    		if( event instanceof StartBasketEvent ) 
-    		{
+    	while (event != null) {	
+    		if(event instanceof StartBasketEvent) {
     			StartBasketEvent basket = (StartBasketEvent) event;
     			logger.debug( basket.getType() + "(oid " + basket.getBid() + ")..." );
-
     		} 
-    		else if ( event instanceof ObjectEvent ) 
-    		{
+    		else if (event instanceof ObjectEvent) {
     			IomObject iomObj = ((ObjectEvent)event).getIomObject();
     			String tag = iomObj.getobjecttag();
     			
     			//logger.debug("tag: " + tag);
-    			readObject( iomObj, tag, gem_bfs, los );
+    			readObject(iomObj, tag);
     			featureName = tag;	
-    		} 
-    		else if (event instanceof EndBasketEvent) 
-    		{
+    		} else if (event instanceof EndBasketEvent) {
     			// do nothing
-    		}
-    		else if ( event instanceof EndTransferEvent ) 
-    		{
+    		} else if (event instanceof EndTransferEvent) {
     			ioxReader.close();
 
-    			// write last table to postgis		
+    			// write the last table to the database		
     			this.writeToPostgis();
     			datastore.dispose();
 
     			break;
     		}
-    		try 
-    		{
+    		
+    		try {
     			event = ioxReader.read();
-    		} 
-    		catch ( IoxException ex ) 
-    		{
-    			logger.error( "Fehler beim Lesen." );
-    			logger.error( ex.getMessage() );
+    		} catch (IoxException ex) {
+    			logger.error("Fehler beim Lesen.");
+    			logger.error(ex.getMessage());
     			ex.printStackTrace();
     		}
     	}                                               
 
     	logger.debug("Committing Transaction...");
-    	try 
-    	{
-        	try 
-        	{
+    	
+    	try {
+        	try {
         		t.commit();
-        	} 
-        	catch ( IOException ex ) 
-        	{
-        		logger.error( "Cannot commit transaction." );
-        		logger.error( ex.getMessage() );
+        	} catch (IOException ex) {
+        		logger.error("Cannot commit transaction.");
+        		logger.error(ex.getMessage());
         		ex.printStackTrace();
         		
         		t.rollback();
-        	} 
-        	finally 
-        	{
+        	} finally {
         		t.close();
         	}
-    	} catch ( IOException ex ) 
-    	{
-    		logger.error( ex.getMessage() );
+    	} catch (IOException ex) {
+    		logger.error(ex.getMessage());
     	}
     }
     
-    
-    private void readObject(IomObject iomObj, String featureName, int gem_bfs, int los) throws IOException {
+    private void readObject(IomObject iomObj, String featureName) throws IOException {
     	String tag=iomObj.getobjecttag();
-    	//logger.debug(iomObj.getobjectline());
 
     	if (!featureName.equalsIgnoreCase(this.featureName)) {    		
     		logger.debug("neu: " + featureName);
     		logger.debug("alt: " + this.featureName);
     		
     		if (features != null) {	
-    			SimpleFeatureCollection fc = DataUtilities.collection( features );
-    			logger.debug("ich schreibe... fc: " + fc.getSchema().getTypeName() + " | Grösse: " + fc.size());
+    			SimpleFeatureCollection fc = DataUtilities.collection(features);
+    			//logger.debug("ich schreibe... fc: " + fc.getSchema().getTypeName() + " | Grösse: " + fc.size());
     			writeToPostgis();
     		}
-    		//collection = FeatureCollections.newCollection(featureName);
-    		//collection = DataUtilities.collection( new ArrayList() );
     		features = new ArrayList();
     	}
     	
@@ -269,6 +204,7 @@ public class IliReader
     		SimpleFeatureBuilder featBuilder = new SimpleFeatureBuilder( ft );	
 
     		String tid = null;
+    		
     		if(((ItfReader) ioxReader).isRenumberTids()) {
     			tid = getTidOrRef(iomObj.getobjectoid());
     		} 
@@ -278,8 +214,9 @@ public class IliReader
     		featBuilder.set("tid", tid);
 
     		Object tableObj = tag2class.get(iomObj.getobjecttag());          
+    		
     		if (tableObj instanceof AbstractClassDef) {
-    			AbstractClassDef tableDef = (AbstractClassDef) tag2class.get( iomObj.getobjecttag());
+    			AbstractClassDef tableDef = (AbstractClassDef) tag2class.get(iomObj.getobjecttag());
     			ArrayList attrs = ch.interlis.iom_j.itf.ModelUtilities.getIli1AttrList(tableDef);
 
     			Iterator attri = attrs.iterator(); 
@@ -295,7 +232,7 @@ public class IliReader
 
     					// what is this good for?
     					if (type instanceof CompositionType) {
-            				logger.debug( "CompositionType" );
+            				logger.debug("CompositionType");
             				int valuec = iomObj.getattrvaluecount(attrName);
             				
             				for (int valuei = 0; valuei < valuec; valuei++) {
@@ -321,6 +258,7 @@ public class IliReader
     					else if (type instanceof AreaType) {
     						isAreaMain = true;
         					IomObject value = iomObj.getattrobj(attrName, 0);
+        					
         					try {
         						Point point = new GeometryFactory().createPoint(Iox2jts.coord2JTS(value));
         						//point.setSRID( Integer.parseInt(this.epsg) ); 
@@ -456,83 +394,14 @@ public class IliReader
 					}                                                               
 				}				
 			}
-    		featBuilder.set("gem_bfs", gem_bfs);
-    		featBuilder.set("los", los);
-    		featBuilder.set("lieferdatum", new Date());
     		
         	SimpleFeature feature = featBuilder.buildFeature( null );
-        	//logger.info( feature.toString() );
         	features.add(feature);
     	}  	
     }
-    
-    
-    public void delete(int gem_bfs, int los) {
-    	try {
-    		Map params= new HashMap();
-    		params.put( "dbtype", "postgis" );        
-    		params.put( "host", this.dbhost );        
-    		params.put( "port", this.dbport );  
-    		params.put( "database", this.dbname ); 
-    		params.put( "schema", this.dbschema );
-    		params.put( "user", this.dbadmin );        
-    		params.put( "passwd", this.dbadminpwd ); 
-    		params.put( PostgisNGDataStoreFactory.VALIDATECONN, true );
-    		params.put( PostgisNGDataStoreFactory.MAX_OPEN_PREPARED_STATEMENTS, 50 );
-    		params.put( PostgisNGDataStoreFactory.LOOSEBBOX, true );
-    		params.put( PostgisNGDataStoreFactory.PREPARED_STATEMENTS, true );
-
-    		if (datastore == null) {
-        		datastore = new PostgisNGDataStoreFactory().createDataStore( params );
-    		}
-    		
-    		Set keys = featureTypes.keySet();
-    		for (Iterator it = keys.iterator(); it.hasNext();)
-    		{
-    			String className = (String) it.next();
-    			String tableName = (className.substring(className.indexOf(".")+1)).replace(".", "_").toLowerCase();
-
-    			// workaround!!
-    			String[] num = tableName.split("_");
-    			if (num.length > 2) {
-    				continue;
-    			}
-    			
-    			logger.debug("Deleting data from " + tableName + " (" + gem_bfs + ", " + los + ")");
-
-    			try {
-    				FeatureSource<SimpleFeatureType, SimpleFeature> source = datastore.getFeatureSource( tableName );
-    				FeatureStore<SimpleFeatureType, SimpleFeature> store = (FeatureStore<SimpleFeatureType, SimpleFeature>) source;
-
-
-    				FilterFactory ff = CommonFactoryFinder.getFilterFactory( null );
-    				Filter filter = null;
-
-    				Filter f1 = ff.equals( ff.property( "gem_bfs" ),  ff.literal( gem_bfs ));
-    				Filter f2 = ff.equals( ff.property( "los" ), ff.literal( los ));                            
-
-    				ArrayList filters = new ArrayList();
-    				filters.add(f1);
-    				filters.add(f2);
-    				filter = ff.and(filters);
-    				
-    				store.removeFeatures(filter);
-    			}
-    			catch (IOException ex) {
-    				logger.error(ex.getMessage());
-    				ex.printStackTrace();
-    			}
-    		}
-    		//datastore.dispose();
-    	} catch (IOException ex) {
-    		ex.printStackTrace();
-			logger.error( ex.getMessage() );
-    	} 
-    }
-    
        
     private void writeToPostgis() throws IOException {
-    	logger.debug("writeToPostgis (Geknorze.....)");
+    	//logger.debug("writeToPostgis (Geknorze.....)");
 		if (isAreaHelper == true) {
 			areaHelperFeatures.addAll( features );
 			
@@ -540,21 +409,21 @@ public class IliReader
 		}
 		else if (isAreaMain == true) {
 			if (areaHelperFeatures == null) {
-				SimpleFeatureCollection collection = DataUtilities.collection( features );
-				writeToPostgis( collection, featureName );
+				SimpleFeatureCollection collection = DataUtilities.collection(features);
+				writeToPostgis(collection, featureName);
 			} 
 			else {
 				if (areaHelperFeatures.size() == 0) {
-					SimpleFeatureCollection collection = DataUtilities.collection( features );
-					writeToPostgis( collection, featureName );
+					SimpleFeatureCollection collection = DataUtilities.collection(features);
+					writeToPostgis(collection, featureName);
 				} else {
-					SimpleFeatureCollection areaHelperCollection = DataUtilities.collection( areaHelperFeatures );
-					SimpleFeatureCollection collection = DataUtilities.collection( features );
-					logger.debug("build area");
-    				SimpleFeatureCollection areaCollection = SurfaceAreaBuilder.buildArea( collection, areaHelperCollection );
-					logger.debug("done");
+					SimpleFeatureCollection areaHelperCollection = DataUtilities.collection(areaHelperFeatures);
+					SimpleFeatureCollection collection = DataUtilities.collection(features);
+					//logger.debug("build area");
+    				SimpleFeatureCollection areaCollection = SurfaceAreaBuilder.buildArea(collection, areaHelperCollection);
+					//logger.debug("done");
 
-    				writeToPostgis( areaCollection, featureName );
+    				writeToPostgis(areaCollection, featureName);
     				areaHelperFeatures.clear();
 				}
 			}
@@ -563,7 +432,7 @@ public class IliReader
 		}
 		else if (isSurfaceMain == true) {
 			
-			logger.debug("isSurfaceMain = true");
+			//logger.debug("isSurfaceMain = true");
 			
 			// Problem bei zwei aufeinanderfolgenden Surface-Tabellen.
 			// Falls die erste KEINE Geometrie hat (keine Helper-Tabelle),
@@ -574,10 +443,10 @@ public class IliReader
 			try {
 				SimpleFeatureCollection surfaceMainCollection = DataUtilities.collection( surfaceMainFeatures );
 				
-				logger.debug("surfaceMainFeatureName: " + surfaceMainFeatureName );
-				logger.debug("featureName: " + featureName );
+				//logger.debug("surfaceMainFeatureName: " + surfaceMainFeatureName );
+				//logger.debug("featureName: " + featureName );
 				
-				writeToPostgis( surfaceMainCollection, surfaceMainFeatureName );
+				writeToPostgis(surfaceMainCollection, surfaceMainFeatureName);
 				surfaceMainFeatures.clear();
 			} catch (NullPointerException e) {
 				System.err.println("surfaceMainCollection keine features");
@@ -591,13 +460,13 @@ public class IliReader
 		else if (isSurfaceHelper == true) {
 			logger.debug("isSurfaceHelper = true");
 
-			SimpleFeatureCollection surfaceMainCollection = DataUtilities.collection( surfaceMainFeatures );
-			SimpleFeatureCollection collection = DataUtilities.collection( features );
-			logger.debug("build surface");
-			SimpleFeatureCollection coll = SurfaceAreaBuilder.buildSurface( surfaceMainCollection, collection );
-			logger.debug("done");
+			SimpleFeatureCollection surfaceMainCollection = DataUtilities.collection(surfaceMainFeatures);
+			SimpleFeatureCollection collection = DataUtilities.collection(features);
+			//logger.debug("build surface");
+			SimpleFeatureCollection coll = SurfaceAreaBuilder.buildSurface(surfaceMainCollection, collection);
+			//logger.debug("done");
 			
-			writeToPostgis( coll, surfaceMainFeatureName );
+			writeToPostgis(coll, surfaceMainFeatureName);
 			surfaceMainFeatures.clear();
 			
 			isSurfaceHelper = false;
@@ -605,25 +474,8 @@ public class IliReader
 		}
 		else {
 			logger.debug("writeToPostgis: " + featureName);
-			SimpleFeatureCollection collection = DataUtilities.collection( features );
-			writeToPostgis(collection, featureName);
-		
-			// BRAUCHE ICH DAS JETZT NOCH????? (siehe oben)
-			
-			// Falls keine Geometrie zur Surface Main Table
-			// wird isSurfaceHelper nie true, somit
-			// gibts die surfaceMainCollection immer noch und
-			// sie muss noch in die DB geschrieben werden.
-//			System.out.println("*1");
-			if (surfaceMainFeatures != null) 
-			{ 
-				if (surfaceMainFeatures.size() > 0) 
-				{
-//					System.out.println("*2");				
-					//this.writeToPostgis(surfaceMainCollection, surfaceMainFeatureName);
-					//surfaceMainCollection.clear();
-				}
-			}
+			SimpleFeatureCollection collection = DataUtilities.collection(features);
+			writeToPostgis(collection, featureName);		
 		}
 		features.clear();
 	}
@@ -656,7 +508,7 @@ public class IliReader
     		store.setTransaction(t);
 
     		try {    				
-    		    logger.debug("Add features: " + featureName);
+    		    logger.info("Add features: " + featureName);
     		    store.addFeatures(collection);
 
     		} catch (IOException ex) {
@@ -676,10 +528,10 @@ public class IliReader
     private void deletePostgresSchemaAndTables() throws ClassNotFoundException, SQLException {
     	logger.info("Start deleting schema and tables...");
     	
-    	String sql = "DROP SCHEMA IF EXISTS " + this.dbschema + " CASCADE;";
+    	String sql = "DROP SCHEMA IF EXISTS " + dbschema + " CASCADE;";
     	
     	Class.forName("org.postgresql.Driver");	
-		Connection conn = DriverManager.getConnection("jdbc:postgresql://"+this.dbhost+"/"+this.dbname, this.dbadmin, this.dbadminpwd);    	
+		Connection conn = DriverManager.getConnection("jdbc:postgresql://"+dbhost+"/"+dbname, dbadmin, dbadminpwd);    	
 
 		Statement s = null;
 		s = conn.createStatement();
@@ -693,10 +545,10 @@ public class IliReader
     private void createPostgresSchemaAndTables() throws IOException, ClassNotFoundException, SQLException {
 		logger.info("Start creating schema and tables...");
     	
-    	StringBuffer buf = PGUtils.getSqlCreateStatements(iliTd, this.dbschema, this.dbadmin, this.dbuser, this.epsg);
+    	StringBuffer buf = PGUtils.getSqlCreateStatements(iliTd, dbschema, dbadmin, dbuser, epsg, enumerationText);
     	
     	Class.forName("org.postgresql.Driver");	
-		Connection conn = DriverManager.getConnection("jdbc:postgresql://"+this.dbhost+"/"+this.dbname, this.dbadmin, this.dbadminpwd);    	
+		Connection conn = DriverManager.getConnection("jdbc:postgresql://"+dbhost+"/"+dbname, dbadmin, dbadminpwd);    	
 
 		Statement s = null;
 		s = conn.createStatement();
@@ -747,12 +599,12 @@ public class IliReader
     	tag2class = ch.interlis.iom_j.itf.ModelUtilities.getTagMap(iliTd);
     }
 
-    
+    // move this to IliUtils.java 
     private void getModelNameFromItf() {
     	ItfReader ioxReader = null;
     	
     	try {
-    		ioxReader = new ch.interlis.iom_j.itf.ItfReader(new java.io.File(itfFileName));
+    		ioxReader = new ch.interlis.iom_j.itf.ItfReader(new java.io.File(importItfFile));
     		IoxEvent event = ioxReader.read();
     		StartBasketEvent be = null;
     		
@@ -799,61 +651,59 @@ public class IliReader
     }
     
     private void readParams() {		
-    	this.dbhost = (String) params.get("dbhost");
-		logger.debug( "dbhost: " + this.dbhost );
-		if ( this.dbhost == null ) {
-			throw new IllegalArgumentException( "'dbhost' not set." );
+    	dbhost = (String) params.get("dbhost");
+		if (dbhost == null) {
+			throw new IllegalArgumentException("'dbhost' not set.");
 		}	
 		
-    	this.dbport = (String) params.get( "dbport" );
-		logger.debug( "dbport: " + this.dbport );		
-		if ( this.dbport == null ) 
-		{
-			throw new IllegalArgumentException( "'dbport' not set." );
+    	dbport = (String) params.get("dbport");
+		if (dbport == null) {
+			throw new IllegalArgumentException("'dbport' not set.");
 		}		
 		
-    	this.dbname = (String) params.get( "dbname" );
-		logger.debug( "dbport: " + this.dbname );		
-		if ( this.dbname == null ) 
-		{
-			throw new IllegalArgumentException( "'dbname' not set." );
+    	dbname = (String) params.get("dbname");
+		if (dbname == null) {
+			throw new IllegalArgumentException("'dbname' not set.");
 		}	
 		
-    	this.dbschema = (String) params.get( "dbschema" );
-		logger.debug( "dbschema: " + this.dbschema );		
-		if ( this.dbschema == null ) 
-		{
-			throw new IllegalArgumentException( "'dbschema' not set." );
+    	dbschema = (String) params.get("dbschema");
+		if (dbschema == null) {
+			throw new IllegalArgumentException("'dbschema' not set.");
 		}			
 
-    	this.dbuser = (String) params.get( "dbuser" );
-		logger.debug( "dbuser: " + this.dbuser );		
-		if ( this.dbuser == null ) 
-		{
-			throw new IllegalArgumentException( "'dbuser' not set." );
+    	dbuser = (String) params.get("dbuser");
+		if (dbuser == null) {
+			throw new IllegalArgumentException("'dbuser' not set.");
 		}	
     	
-    	this.dbpwd = (String) params.get( "dbpwd" );
-		logger.debug( "dbpwd: " + this.dbpwd );		
-		if ( this.dbpwd == null ) 
-		{
-			throw new IllegalArgumentException( "'dbpwd' not set." );
+    	dbpwd = (String) params.get("dbpwd");
+		if (dbpwd == null) {
+			throw new IllegalArgumentException("'dbpwd' not set.");
 		}			
 		
-    	this.dbadmin = (String) params.get( "dbadmin" );
-		logger.debug( "dbadmin: " + this.dbadmin );		
-		if ( this.dbadmin == null ) 
-		{
-			throw new IllegalArgumentException( "'dbadmin' not set." );
+    	dbadmin = (String) params.get("dbadmin");
+		if (dbadmin == null) {
+			throw new IllegalArgumentException("'dbadmin' not set.");
 		}	
     	
-    	this.dbadminpwd = (String) params.get( "dbadminpwd" );
-		logger.debug( "dbadminpwd: " + this.dbadminpwd );		
-		if ( this.dbadminpwd == null ) 
-		{
-			throw new IllegalArgumentException( "'dbadminpwd' not set." );
+    	dbadminpwd = (String) params.get("dbadminpwd");
+		if (dbadminpwd == null) {
+			throw new IllegalArgumentException("'dbadminpwd' not set.");
 		}	 
+		
+		importModelName = (String) params.get("importModelName");
+		if (importModelName == null) {
+			throw new IllegalArgumentException("'importModelName' not set.");
+		}
+		
+		importItfFile = (String) params.get("importItfFile");
+		if (importItfFile == null) {
+			throw new IllegalArgumentException("'importItfFile' not set.");
+		}
+		
+		enumerationText = (Boolean) params.get("enumerationText");
 
+		renumberTid = (Boolean) params.get("renumberTid");
 	}    
     
 }

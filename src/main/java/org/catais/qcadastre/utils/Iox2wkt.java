@@ -123,7 +123,7 @@ public class Iox2wkt {
 		}
 		
 		// TEMPORARY:
-		maxOverlaps = 0.002;
+		//maxOverlaps = 0.002;
 		//maxOverlaps = 0.0001;
 
 		LineSegment segment = new LineSegment( ptStart, ptEnd );
