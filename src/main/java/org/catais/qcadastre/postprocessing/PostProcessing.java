@@ -39,7 +39,7 @@ public class PostProcessing {
 
 	
 	public PostProcessing(HashMap params) throws ClassNotFoundException, SQLException {
-		logger.setLevel(Level.INFO);
+		logger.setLevel(Level.DEBUG);
 		
 		this.params = params;
 		readParams();
