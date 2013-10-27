@@ -120,18 +120,7 @@ public class App
 			// Stop logging
         	logger.info("End: "+ new Date());
 		}
- 
 
-    	
-   
-
-
-    	
-    	
-    	
-    	
-    	
-    	
         System.out.println( "Hello Stefan!" );
     }
 }
