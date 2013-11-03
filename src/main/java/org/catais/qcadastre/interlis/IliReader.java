@@ -78,7 +78,7 @@ public class IliReader
     private String dbpwd = null;
     private String dbadmin = null;
     private String dbadminpwd = null;
-    private String epsg = "21781";
+    private String epsg = null;
     private String importModelName = null;
 	private String importItfFile = null;
 	
@@ -116,6 +116,7 @@ public class IliReader
     	tag2class = ch.interlis.iom_j.itf.ModelUtilities.getTagMap(iliTd);
     }
     
+    // Ueberfluessig?
     public void setEpsg(String epsg) {
     	this.epsg = epsg;
     }
@@ -704,6 +705,11 @@ public class IliReader
 		enumerationText = (Boolean) params.get("enumerationText");
 
 		renumberTid = (Boolean) params.get("renumberTid");
+		
+		epsg = (String) params.get("epsg");
+		if (epsg == null) {
+			epsg = "21781";
+		}
 	}    
     
 }

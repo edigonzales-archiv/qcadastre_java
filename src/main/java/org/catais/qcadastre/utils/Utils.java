@@ -38,7 +38,16 @@ public class Utils
 		}
 		logger.debug("postprocessingDatabase: " + postprocessFilename);
 		
-		// Import parameters		
+		// Import parameters	
+		String epsg = properties.getProperty("epsg");
+		if (epsg != null) {
+			params.put("epsg", epsg.trim());
+		} else {
+			throw new IllegalArgumentException("epsg parameter not set.");
+		}
+		logger.debug("epsg: " + epsg);
+
+		
 		String importModelName = properties.getProperty("importModelName");
 		if (importModelName != null) {
 			params.put("importModelName", importModelName.trim());
