@@ -134,7 +134,7 @@ public class QGISUtils
 											jobjTable.put("featuretype", tableName);
 											jobjTable.put("key", "ogc_fid");
 											jobjTable.put("geom", g);
-											jobjTable.put("read-only", "true");
+											jobjTable.put("readonly", 1);
 											jobjTable.put("style", "");
 											
 											jTablesList.add(jobjTable);
@@ -145,8 +145,7 @@ public class QGISUtils
 										jobjTable.put("title", v.getName());
 										jobjTable.put("featuretype", tableName);
 										jobjTable.put("key", "ogc_fid");
-										jobjTable.put("geom", "");
-										jobjTable.put("read-only", "true");
+										jobjTable.put("readonly", 1);
 										jobjTable.put("style", "");
 										
 										jTablesList.add(jobjTable);
