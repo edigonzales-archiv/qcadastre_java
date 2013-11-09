@@ -95,6 +95,16 @@ public class PostProcessing {
 			}
 			rv.close();
 			
+			rv = v.executeQuery("SELECT * FROM updates;");
+			while (rv.next()) {
+				String sql_tmp = rv.getString(rv.findColumn("sql_query"));
+				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin);
+				logger.debug(sql);                              
+				int m = 0;
+				m = s.executeUpdate(sql);
+			}
+			rv.close();			
+			
     		s.executeUpdate("SET work_mem TO '1MB';");
     		s.executeUpdate("SET maintenance_work_mem TO '16MB';");                 			
 			
