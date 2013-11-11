@@ -107,6 +107,11 @@ public class IliReader
         // compile interlis model
         iliTd = IliUtils.compileModel(importModelName);
         
+        
+        // temporary!!!!!!!!!!
+        deletePostgresSchemaAndTables();
+        
+        
         // create database schema
         createPostgresSchemaAndTables();
         
@@ -135,7 +140,8 @@ public class IliReader
     	while (event != null) {	
     		if(event instanceof StartBasketEvent) {
     			StartBasketEvent basket = (StartBasketEvent) event;
-    			logger.debug( basket.getType() + "(oid " + basket.getBid() + ")..." );
+    			logger.info( basket.getType() + "(oid " + basket.getBid() + ")..." );
+
     		} 
     		else if (event instanceof ObjectEvent) {
     			IomObject iomObj = ((ObjectEvent)event).getIomObject();
@@ -151,8 +157,29 @@ public class IliReader
 
     			// write the last table to the database		
     			this.writeToPostgis();
-    			datastore.dispose();
+    			
+    			// surfaces need a special treatment
+    			// Das vorgehende 'writeToPostgis()' schreibt
+    			// eigentlich die letzte Tabelle. FAlls die Surface-
+    			// Tabelle keine Geometrien hat, wird sie solange nicht
+    			// geschrieben bis wieder eine Surface-Tabelle kommt.
+    			// Somit ist es möglich, dass sie gar nicht mehr 
+    			// geschrieben wird (wenn keine weiter Surface-
+    			// Tabelle kommt.
+    			logger.info(surfaceMainFeatureName);
+    			try {
+    				if (surfaceMainFeatures.size() > 0) {
+    					SimpleFeatureCollection surfaceMainCollection = DataUtilities.collection( surfaceMainFeatures );
+    					
+    					writeToPostgis(surfaceMainCollection, surfaceMainFeatureName);
+    					surfaceMainFeatures.clear();
+    				}
+    			} catch (Exception e) {
+    				// do nothing
+    			}
 
+    			datastore.dispose();
+   
     			break;
     		}
     		
@@ -444,9 +471,6 @@ public class IliReader
 			try {
 				SimpleFeatureCollection surfaceMainCollection = DataUtilities.collection( surfaceMainFeatures );
 				
-				//logger.debug("surfaceMainFeatureName: " + surfaceMainFeatureName );
-				//logger.debug("featureName: " + featureName );
-				
 				writeToPostgis(surfaceMainCollection, surfaceMainFeatureName);
 				surfaceMainFeatures.clear();
 			} catch (NullPointerException e) {
@@ -476,7 +500,7 @@ public class IliReader
 		else {
 			logger.debug("writeToPostgis: " + featureName);
 			SimpleFeatureCollection collection = DataUtilities.collection(features);
-			writeToPostgis(collection, featureName);		
+			writeToPostgis(collection, featureName);			
 		}
 		features.clear();
 	}
@@ -501,6 +525,10 @@ public class IliReader
         		datastore = new PostgisNGDataStoreFactory().createDataStore(params);
     		}
 
+//    		if (featureName.equalsIgnoreCase("DM01AVCH24D.Gemeindegrenzen.GEMNachfuehrung")) {
+//    			logger.info("fubar");
+//    		}
+    		
     		String tableName = (featureName.substring(featureName.indexOf(".") + 1 )).replace(".", "_").toLowerCase();
 
     		FeatureSource<SimpleFeatureType, SimpleFeature> source = datastore.getFeatureSource(tableName);
