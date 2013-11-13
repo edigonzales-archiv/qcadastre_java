@@ -33,6 +33,7 @@ public class PostProcessing {
     private String dbpwd = null;
     private String dbadmin = null;
     private String dbadminpwd = null;
+    private String epsg = null;
 	
     Connection pgconn = null;
     Connection sqconn = null;
@@ -68,7 +69,7 @@ public class PostProcessing {
 			rv = v.executeQuery("SELECT * FROM tables;");
 			while (rv.next()) {
 				String sql_tmp = rv.getString(rv.findColumn("sql_query"));
-				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin);
+				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin).replace("$$EPSG", epsg);
 				logger.debug(sql);                              
 				int m = 0;
 				m = s.executeUpdate(sql);
@@ -78,7 +79,7 @@ public class PostProcessing {
 			rv = v.executeQuery("SELECT * FROM views;");
 			while (rv.next()) {
 				String sql_tmp = rv.getString(rv.findColumn("sql_query"));
-				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin);
+				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin).replace("$$EPSG", epsg);
 				logger.debug(sql);                              
 				int m = 0;
 				m = s.executeUpdate(sql);
@@ -88,7 +89,7 @@ public class PostProcessing {
 			rv = v.executeQuery("SELECT * FROM inserts;");
 			while (rv.next()) {
 				String sql_tmp = rv.getString(rv.findColumn("sql_query"));
-				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin);
+				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin).replace("$$EPSG", epsg);
 				logger.debug(sql);                              
 				int m = 0;
 				m = s.executeUpdate(sql);
@@ -98,7 +99,7 @@ public class PostProcessing {
 			rv = v.executeQuery("SELECT * FROM updates;");
 			while (rv.next()) {
 				String sql_tmp = rv.getString(rv.findColumn("sql_query"));
-				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin);
+				String sql = sql_tmp.replace("$$DBSCHEMA", dbschema).replace("$$USER", dbuser).replace("$$ADMIN", dbadmin).replace("$$EPSG", epsg);
 				logger.debug(sql);                              
 				int m = 0;
 				m = s.executeUpdate(sql);
@@ -162,9 +163,11 @@ public class PostProcessing {
     	dbadminpwd = (String) params.get("dbadminpwd");
 		if (dbadminpwd == null) {
 			throw new IllegalArgumentException("'dbadminpwd' not set.");
-		}	 
-					
+		}	
 		
+		epsg = (String) params.get("epsg");
+		if (epsg == null) {
+			epsg = "21781";
+		}
 	}	
-
 }
