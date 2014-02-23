@@ -110,8 +110,7 @@ public class App
     	} catch (ClassNotFoundException e) {
     		e.printStackTrace();
     		logger.error(e.getMessage());
-    	} 
-    		catch (IoxException e) {
+    	} catch (IoxException e) {
     		e.printStackTrace();
     		logger.error(e.getMessage());
     	}
